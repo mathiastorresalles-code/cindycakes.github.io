@@ -199,9 +199,9 @@ textarea.form-input{resize:vertical;min-height:80px;}
 <script>
 const WA = '5493757446788';
 
-const CATS = ['Alfajores','Tarteletas','Trufas y bombones','Otros dulces','Tortas','Tartas'];
+const CATS = ['Alfajores','Tarteletas','Trufas y bombones','Otros dulces','Tortas','Tartas','Personalizados'];
 
-const EMOJIS = {
+const EMOJIS = {'Personalizados':'✨',
   'Alfajores':'🍪','Tarteletas':'🥧','Trufas y bombones':'🍫',
   'Otros dulces':'🧁','Tortas':'🎂','Tartas':'🥧'
 };
@@ -244,6 +244,11 @@ let pagActiva = 1;
 
 function fmt(n){ return '$' + Math.round(n).toLocaleString('es-AR'); }
 
+function consultarWhatsApp(producto){
+  const msg = `Hola Cindy! Me interesa consultar sobre: *${producto}* ✨\n\n¿Me podés dar más información y el precio?`;
+  window.open('https://wa.me/5493757446788?text=' + encodeURIComponent(msg), '_blank');
+}
+
 function irPag(n){
   pagActiva = n;
   document.querySelectorAll('.page').forEach((p,i) => p.classList.toggle('active', i+1===n));
@@ -273,6 +278,17 @@ function renderProds(){
   lista.innerHTML = prods.map(p => {
     const qty = carrito[p.id]?.qty || 0;
     const inCart = qty > 0;
+    if(p.personalizado){
+      return `<div class="prod-item" id="pi-${p.id}">
+        <div style="font-size:36px;width:60px;height:60px;background:#fff0f8;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${p.emoji}</div>
+        <div class="prod-info">
+          <div class="prod-nombre">${p.nombre}</div>
+          <div style="font-size:12px;color:#d4607a;font-weight:700;margin-bottom:6px;">Precio a consultar</div>
+          <div style="font-size:11px;color:#aaa;line-height:1.4;">El precio varía según tu pedido</div>
+        </div>
+        <button onclick="consultarWhatsApp('${p.nombre}')" style="padding:8px 12px;background:#25d366;color:white;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;">Consultar</button>
+      </div>`;
+    }
     return `<div class="prod-item${inCart?' in-cart':''}" id="pi-${p.id}">
       <div style="${p.img ? 'width:80px;height:80px;background:#fff;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;' : 'font-size:28px;width:44px;height:44px;background:#fff0f3;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;'}">${p.img ? `<img src="${p.img}" style="width:80px;height:80px;object-fit:contain;border-radius:12px;padding:4px;">` : p.emoji}</div>
       <div class="prod-info">
@@ -441,9 +457,7 @@ let marcador = null;
 
 function iniciarMapa(){
   if(mapa) return;
-
-  mapa = L.map('mapa', {zoomControl:true}).setView([-25.9167, -54.6000], 14);
-
+  mapa = L.map('mapa', {zoomControl:true}).setView([-26.0333, -54.5667], 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
     maxZoom: 19
@@ -474,62 +488,10 @@ function clearMapPin(){
   if(marcador && mapa){ mapa.removeLayer(marcador); marcador = null; }
 }
 
-
-function actualizarEnvio(){
-  const zona = document.getElementById('f-zona').value;
-  const box = document.getElementById('costo-envio-box');
-  const total = calcTotal();
-
-  if(!zona){ box.style.display='none'; return; }
-
-  let msg = '';
-  let costoEnvio = 0;
-  let esGratis = false;
-
-  if(zona === 'libertad'){
-    if(total >= 6900){
-      msg = '✅ <strong>Envío sin costo</strong> — tu pedido supera los $6.900';
-      esGratis = true;
-      box.style.background = '#f0fff4';
-      box.style.border = '1.5px solid #86efac';
-      box.style.color = '#166534';
-    } else {
-      costoEnvio = 500;
-      const falta = 6900 - total;
-      msg = '🛵 <strong>Envío: $500</strong> — agregá $' + Math.round(falta).toLocaleString('es-AR') + ' más para que sea gratis';
-      box.style.background = '#fff8f0';
-      box.style.border = '1.5px solid #fdba74';
-      box.style.color = '#9a3412';
-    }
-  } else if(zona === 'wanda'){
-    costoEnvio = 6000;
-    msg = '🛵 <strong>Envío a Wanda: $6.000</strong>';
-    box.style.background = '#fff8f0';
-    box.style.border = '1.5px solid #fdba74';
-    box.style.color = '#9a3412';
-  } else if(zona === 'esperanza'){
-    costoEnvio = 12000;
-    msg = '🛵 <strong>Envío a Puerto Esperanza: $12.000</strong>';
-    box.style.background = '#fff8f0';
-    box.style.border = '1.5px solid #fdba74';
-    box.style.color = '#9a3412';
-  }
-
-  box.innerHTML = msg;
-  box.style.display = 'block';
-
-  // Store for WhatsApp message
-  window._costoEnvio = costoEnvio;
-  window._zonaEnvio = document.getElementById('f-zona').options[document.getElementById('f-zona').selectedIndex].text;
-  window._envioGratis = esGratis;
-}
 document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('f-entrega').addEventListener('change', function(){
     const show = this.value === 'Envío a domicilio';
     document.getElementById('dir-group').style.display = show ? 'block' : 'none';
-    document.getElementById('zona-group').style.display = show ? 'block' : 'none';
-    document.getElementById('costo-envio-box').style.display = 'none';
-    document.getElementById('f-zona').value = '';
     if(show) setTimeout(iniciarMapa, 150);
   });
 });
